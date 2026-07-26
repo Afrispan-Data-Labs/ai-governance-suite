@@ -1,0 +1,21 @@
+# Pinned dependency versions for the Production LLM Evaluation Suite.
+# Used by the Dockerfile and by tests/test_governance_suite.py in CI.
+#
+# ragas pinned below 0.4: ragas/llms/base.py in 0.4.x imports ChatVertexAI
+# from a location removed after LangChain relocated that class to
+# langchain-google-vertexai. Breaks "import ragas" for anyone, regardless
+# of whether Vertex AI is used. See: github.com/vibrantlabsai/ragas/issues/2745
+
+ragas==0.3.9
+langchain-community
+langchain-google-genai
+langchain-anthropic
+deepeval>=1.0
+langfuse>=2.0
+chromadb
+google-genai
+anthropic
+pytest
+pyyaml
+pandas
+cryptography
