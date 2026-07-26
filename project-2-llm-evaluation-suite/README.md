@@ -116,3 +116,21 @@ a notebook being technically capable of a live run is never conflated
 with the data flowing through it being genuine. Naming this gap plainly
 is treated as the governance contribution itself, not a weakness to
 obscure.
+
+## Production Deployment Architecture
+
+This section describes how the evaluation suite is wired into CI/CD, extending the notebook-based work above into something a production deployment pipeline can actually run against.
+
+**Status: BUILDING.** Every component below exists as a real, working file in this repository. None has yet executed end to end in a live CI run, pending funded Gemini and Claude API credits. This describes the actual mechanism, not an aspiration.
+
+**Trigger.** `.github/workflows/deepeval-regression.yml` runs on every pull request touching `project-2-llm-evaluation-suite/`, and can be triggered manually via `workflow_dispatch`. It installs dependencies from `project-2-llm-evaluation-suite/requirements.txt` and runs `project-2-llm-evaluation-suite/tests/test_governance_suite.py` via `deepeval test run`, reporting results as a PR status check.
+
+**Container.** `project-2-llm-evaluation-suite/Dockerfile` packages the full evaluation environment: Node 22.x (installed explicitly, since Promptfoo 0.121.19 requires `^20.20.0` or `>=22.22.0`, above what most base images ship), RAGAS pinned to `0.3.9` (documented workaround for a real upstream import bug), DeepEval, Langfuse, and Promptfoo. API keys and Langfuse credentials are injected as environment variables at container runtime, never baked into the image.
+
+**Merge gate.** `tests/test_governance_suite.py` is not a copy-paste of notebook cells, it is a standalone, pytest-native reimplementation of Phase 03a/03b's real logic: the same `REGULATORY_DOCS` knowledge base, the same `PASS_THRESHOLD`/`FAIL_THRESHOLD` three-queue routing (design addition: Federico Blanco Sanchez-Llanos, Enforcement Infrastructure Capital and Compute, see Design Contributions above), and a real `ClaudeJudge` class implementing DeepEval's documented `DeepEvalBaseLLM` interface, so Claude genuinely judges Gemini's output in this file too, not just in the notebooks. `assert_test`/`assert` failures inside it fail the pytest run, which fails the GitHub Actions check, which blocks the merge.
+
+**Verified today, independent of API billing.** The suite's 3 pure-logic routing tests (`test_routing_pass_threshold`, `test_routing_fail_threshold`, `test_routing_borderline_zone`) were actually executed via `pytest`, not just written, and pass. The 5 API-dependent tests were confirmed to skip cleanly, with an explicit reason, rather than crash or false-pass, when `GOOGLE_API_KEY`/`ANTHROPIC_API_KEY` are absent. This is real, checked behavior, not an assumption about how `pytest.mark.skipif` would behave.
+
+**What is not yet built.** No scheduled nightly run against production-sampled traffic exists yet, only the pull-request trigger. The Docker image has not been built or pushed to a registry. The 5 API-dependent tests have never executed against live models.
+
+**First two weeks, if hired.** Wiring this existing tooling into Talabat's actual pipeline is a bounded integration task: point the workflow at the real repository, swap in real secrets, and align with the team on where this gate sits relative to their existing checks. The evaluation methodology, the routing design, and the CI scaffolding already exist and are verified. The production wiring is the one remaining connection.
