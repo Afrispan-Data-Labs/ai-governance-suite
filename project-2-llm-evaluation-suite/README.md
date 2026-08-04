@@ -42,7 +42,11 @@ Two phases (5c's MITRE ATLAS mapping and 6a's Langfuse wiring logic) contain
 components that are genuinely real and functional today, independent of API
 billing: the ATLAS technique mapping is a deterministic lookup table, and
 6a's per-source honesty gating logic is real, working code regardless of
-whether the scores flowing through it are live or historical.
+whether the scores flowing through it are live or historical. The CI/CD
+pipeline is a third: the GitHub Actions workflow has been confirmed running
+end to end on live infrastructure, dependencies installing, the test suite
+executing, and results publishing successfully as a check run, independent
+of whether the underlying tests themselves have API credentials yet.
 
 ## Known Issues Resolved
 
@@ -121,7 +125,13 @@ obscure.
 
 This section describes how the evaluation suite is wired into CI/CD, extending the notebook-based work above into something a production deployment pipeline can actually run against.
 
-**Status: BUILDING.** Every component below exists as a real, working file in this repository. None has yet executed end to end in a live CI run, pending funded Gemini and Claude API credits. This describes the actual mechanism, not an aspiration.
+**Status: BUILDING, CI pipeline confirmed live.** Every component below
+exists as a real, working file in this repository, and the pipeline itself
+has now executed successfully end to end on GitHub Actions, not just
+locally. What remains pending funded API credits is narrower and specific:
+the 5 tests inside the suite that require a live model call. The pipeline
+that runs them, installs them, and reports their result is proven working
+today.
 
 **Trigger.** `.github/workflows/deepeval-regression.yml` runs on every pull request touching `project-2-llm-evaluation-suite/`, and can be triggered manually via `workflow_dispatch`. It installs dependencies from `project-2-llm-evaluation-suite/requirements.txt` and runs `project-2-llm-evaluation-suite/tests/test_governance_suite.py` via `deepeval test run`, reporting results as a PR status check.
 
@@ -129,8 +139,27 @@ This section describes how the evaluation suite is wired into CI/CD, extending t
 
 **Merge gate.** `tests/test_governance_suite.py` is not a copy-paste of notebook cells, it is a standalone, pytest-native reimplementation of Phase 03a/03b's real logic: the same `REGULATORY_DOCS` knowledge base, the same `PASS_THRESHOLD`/`FAIL_THRESHOLD` three-queue routing (design addition: Federico Blanco Sanchez-Llanos, Enforcement Infrastructure Capital and Compute, see Design Contributions above), and a real `ClaudeJudge` class implementing DeepEval's documented `DeepEvalBaseLLM` interface, so Claude genuinely judges Gemini's output in this file too, not just in the notebooks. `assert_test`/`assert` failures inside it fail the pytest run, which fails the GitHub Actions check, which blocks the merge.
 
-**Verified today, independent of API billing.** The suite's 3 pure-logic routing tests (`test_routing_pass_threshold`, `test_routing_fail_threshold`, `test_routing_borderline_zone`) were actually executed via `pytest`, not just written, and pass. The 5 API-dependent tests were confirmed to skip cleanly, with an explicit reason, rather than crash or false-pass, when `GOOGLE_API_KEY`/`ANTHROPIC_API_KEY` are absent. This is real, checked behavior, not an assumption about how `pytest.mark.skipif` would behave.
+**Verified today, independent of API billing, on two separate occasions.**
+First, locally: the suite's 3 pure-logic routing tests
+(`test_routing_pass_threshold`, `test_routing_fail_threshold`,
+`test_routing_borderline_zone`) were executed via `pytest` and pass. The 5
+API-dependent tests were confirmed to skip cleanly, with an explicit reason,
+rather than crash or false-pass, when `GOOGLE_API_KEY`/`ANTHROPIC_API_KEY`
+are absent. Second, on live GitHub Actions infrastructure: the same behavior
+was reproduced end to end in CI, including a real permissions bug found and
+fixed along the way, the result-publishing step initially failed with a 403
+Forbidden error because GitHub's default workflow token is read-only unless
+explicitly granted write access. Adding an explicit `permissions` block
+(`checks: write`, `pull-requests: write`, `contents: read`) resolved it,
+confirmed by a fully green run immediately after. This is real, checked
+behavior on two independent systems, not an assumption about how either one
+would behave.
 
-**What is not yet built.** No scheduled nightly run against production-sampled traffic exists yet, only the pull-request trigger. The Docker image has not been built or pushed to a registry. The 5 API-dependent tests have never executed against live models.
+**What is not yet built.** No scheduled nightly run against production-sampled
+traffic exists yet, only the pull-request and manual `workflow_dispatch`
+triggers, both confirmed working. The Docker image has not yet been built
+or pushed to a registry. The 5 API-dependent tests have never executed
+against live models, that remains the one thing genuinely blocked on funded
+API credits, not on the CI infrastructure itself.
 
 **First two weeks, IRL Production.** Wiring this existing tooling into Talabat's actual pipeline is a bounded integration task: point the workflow at the real repository, swap in real secrets, and align with the team on where this gate sits relative to their existing checks. The evaluation methodology, the routing design, and the CI scaffolding already exist and are verified. The production wiring is the one remaining connection.
