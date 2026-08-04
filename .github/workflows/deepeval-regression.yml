@@ -11,6 +11,11 @@ name: DeepEval Regression Suite
 # read from GitHub Actions repository secrets, never committed to the repo.
 # This workflow has not yet executed end to end in CI, pending funded API
 # credits for both providers.
+#
+# permissions block added after a real, confirmed 403 Forbidden error:
+# EnricoMi/publish-unit-test-result-action needs explicit write access to
+# create a check run. GitHub Actions' default token is read-only unless a
+# workflow grants more, documented in the action's own README.
 
 on:
   pull_request:
@@ -18,6 +23,11 @@ on:
     paths:
       - "project-2-llm-evaluation-suite/**"
   workflow_dispatch: {}
+
+permissions:
+  checks: write
+  pull-requests: write
+  contents: read
 
 jobs:
   deepeval-regression:
