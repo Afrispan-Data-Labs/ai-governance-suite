@@ -1,0 +1,890 @@
+{
+  "name": "AI Governance in Practice Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pr-verdict",
+        "options": {}
+      },
+      "id": "0a0f6812-8a02-4bbe-9ebc-e335406fb94b",
+      "name": "PR Verdict Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        192
+      ],
+      "webhookId": "14904315-00f0-44ac-945a-f55c523b9172"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.score }}",
+                    "rightValue": 0.8,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gte"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Auto-Merge"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.score }}",
+                    "rightValue": 0.6,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gte"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Borderline"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Send Back (Fail)"
+        }
+      },
+      "id": "b9a8fe6a-0624-4a98-9045-9d4eddb2b454",
+      "name": "Route by Council Score",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "pullRequest",
+        "operation": "merge",
+        "pullRequestNumber": "={{ $('PR Verdict Webhook').item.json.body.pr_number }}",
+        "mergeMethod": "squash",
+        "commitTitle": "={{ $('PR Verdict Webhook').item.json.body.title }} (auto-merged, council score {{ $('PR Verdict Webhook').item.json.body.score }})",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('PR Verdict Webhook').item.json.body.repository.owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('PR Verdict Webhook').item.json.body.repository.name }}"
+        }
+      },
+      "id": "ba03a547-c179-4f32-b79f-dd84bd84a92a",
+      "name": "Auto-Merge PR",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        0
+      ],
+      "webhookId": "badc8697-6f04-4295-936e-06baee84a1cc",
+      "credentials": {
+        "githubApi": {
+          "id": "nZ5JQMp2gqRho33L",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select the human-engineer review channel"
+        },
+        "text": "=*BORDERLINE PR — human decision required*\\nRepo: {{ $json.body.repository.owner }}/{{ $json.body.repository.name }} · PR #{{ $json.body.pr_number }} — {{ $json.body.title }}\\nCouncil score: *{{ $json.body.score }} / {{ $json.body.baseline }}* (Gemini {{ $json.body.council.gemini_score }} · Claude {{ $json.body.council.claude_score }})\\n\\n*Finding:* {{ $json.body.finding }}\\n\\nApprove merge: {{ $execution.resumeUrl }}?approved=true\\nSend back: {{ $execution.resumeUrl }}?approved=false",
+        "otherOptions": {}
+      },
+      "id": "4b22b40d-23bd-400e-a077-852fe7a8a368",
+      "name": "Slack: BORDERLINE Review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.6,
+      "position": [
+        448,
+        192
+      ],
+      "webhookId": "276159a0-0c0c-437a-9919-f3ae6a2308d5",
+      "credentials": {
+        "slackApi": {
+          "id": "86UvRsjA3GpOiiV9",
+          "name": "Slack account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "steeveonyeke@gmail.com",
+        "subject": "=BORDERLINE PR #{{ $json.body.pr_number }} needs your decision (score {{ $json.body.score }}/1)",
+        "message": "=<p><b>BORDERLINE PR — human decision required</b></p><p>Repo: {{ $json.body.repository.owner }}/{{ $json.body.repository.name }}<br/>PR #{{ $json.body.pr_number }} — {{ $json.body.title }}</p><p>Council score: <b>{{ $json.body.score }} / {{ $json.body.baseline }}</b> (Gemini {{ $json.body.council.gemini_score }}, Claude {{ $json.body.council.claude_score }})</p><p><b>Finding:</b><br/>{{ $json.body.finding }}</p><p><a href=\"{{ $execution.resumeUrl }}?approved=true\">Approve &amp; merge</a> &nbsp;|&nbsp; <a href=\"{{ $execution.resumeUrl }}?approved=false\">Send back to engineer</a></p>",
+        "options": {}
+      },
+      "id": "d1377ac0-5fbf-4b6c-bf6a-e43a8811f7c6",
+      "name": "Email: BORDERLINE Review",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        192
+      ],
+      "webhookId": "305a7bc0-30f5-4dc5-b905-9293f702ccf2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IffkEn4E3iqHwd0f",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "e166f5a8-9223-45fd-8f7b-3d6fc1e0818c",
+      "name": "Wait for Human Decision",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        192
+      ],
+      "webhookId": "b71be307-cf13-433d-9383-82639fab6340"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.query.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dcf4eb14-d5a0-455b-af3b-10e71c6ea0b8",
+      "name": "Human Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "pullRequest",
+        "operation": "merge",
+        "pullRequestNumber": "={{ $('PR Verdict Webhook').item.json.body.pr_number }}",
+        "mergeMethod": "squash",
+        "commitTitle": "={{ $('PR Verdict Webhook').item.json.body.title }} (borderline, human-approved)",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('PR Verdict Webhook').item.json.body.repository.owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('PR Verdict Webhook').item.json.body.repository.name }}"
+        }
+      },
+      "id": "13930c2b-5ffc-4fae-985c-14d1eb66bff6",
+      "name": "Merge (Human Approved)",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        96
+      ],
+      "webhookId": "0c11fd25-328b-43b5-a0f0-130457e6691f",
+      "credentials": {
+        "githubApi": {
+          "id": "nZ5JQMp2gqRho33L",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "pullRequest",
+        "operation": "createComment",
+        "pullRequestNumber": "={{ $('PR Verdict Webhook').item.json.body.pr_number }}",
+        "body": "=`[BORDERLINE: sent-back-by-human]`\\n\\nCouncil score {{ $('PR Verdict Webhook').item.json.body.score }} / 1 was BORDERLINE and a human engineer reviewed it.\\n\\n**Decision:** send back for changes.\\n\\n**Original finding:**\\n{{ $('PR Verdict Webhook').item.json.body.finding }}",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('PR Verdict Webhook').item.json.body.repository.owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('PR Verdict Webhook').item.json.body.repository.name }}"
+        }
+      },
+      "id": "5ecda862-c465-4e8b-ac3b-9ea68394c03c",
+      "name": "Send Back (Human Rejected)",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        288
+      ],
+      "webhookId": "45f45aef-9b12-4c41-9a97-65bd43cb2c3f",
+      "credentials": {
+        "githubApi": {
+          "id": "nZ5JQMp2gqRho33L",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "pullRequest",
+        "operation": "createComment",
+        "pullRequestNumber": "={{ $('PR Verdict Webhook').item.json.body.pr_number }}",
+        "body": "=`[FAILED: council-score-below-0.6]`\\n\\n**Council score:** {{ $json.body.score }} / {{ $json.body.baseline }} (baseline 1)\\nGemini: {{ $json.body.council.gemini_score }} · Claude: {{ $json.body.council.claude_score }}\\n\\n**Failure reason:**\\n{{ $json.body.finding }}\\n\\nThis PR is returned to the engineer. Address the finding above and re-run the harness.",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('PR Verdict Webhook').item.json.body.repository.owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('PR Verdict Webhook').item.json.body.repository.name }}"
+        }
+      },
+      "id": "6eceee1e-df70-4342-a727-30530adc1c48",
+      "name": "Send Back With Failure Tag",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        384
+      ],
+      "webhookId": "f0929548-bc29-47f2-a348-8c50d25e7a49",
+      "credentials": {
+        "githubApi": {
+          "id": "nZ5JQMp2gqRho33L",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "regression-alarm",
+        "options": {}
+      },
+      "id": "068b6788-c38a-4938-a480-b6209ecef601",
+      "name": "Langfuse Regression Alarm",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        704
+      ],
+      "webhookId": "798adf7c-b094-43d6-8d5a-000028f5281f"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select the governance on-call channel"
+        },
+        "text": "=*Langfuse regression alarm crossed threshold*\\nMetric: *{{ $json.body.metric }}*\\nValue: *{{ $json.body.value }}* / {{ $json.body.baseline }} (threshold {{ $json.body.threshold }})\\nWindow: {{ $json.body.window }}\\nDashboard: {{ $json.body.dashboard_url }}",
+        "otherOptions": {}
+      },
+      "id": "f52ae53f-238e-4064-9825-24e08b5bf19d",
+      "name": "Slack: Governance On-Call (Regression)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.6,
+      "position": [
+        464,
+        640
+      ],
+      "webhookId": "b264104d-3862-41aa-b9b4-df0e2cf2ff17",
+      "credentials": {
+        "slackApi": {
+          "id": "86UvRsjA3GpOiiV9",
+          "name": "Slack account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "steeveonyeke@gmail.com",
+        "subject": "=Regression alarm: {{ $json.body.metric }} = {{ $json.body.value }}/1 (below {{ $json.body.threshold }})",
+        "message": "=<p><b>Langfuse regression alarm crossed threshold</b></p><p>Metric: <b>{{ $json.body.metric }}</b><br/>Value: <b>{{ $json.body.value }}</b> / {{ $json.body.baseline }} (threshold {{ $json.body.threshold }})<br/>Window: {{ $json.body.window }}</p><p><a href=\"{{ $json.body.dashboard_url }}\">Open Langfuse dashboard</a></p>",
+        "options": {}
+      },
+      "id": "69b89037-8e3c-4f01-9034-ffb415f9c8fd",
+      "name": "Email: Governance On-Call (Regression)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        464,
+        800
+      ],
+      "webhookId": "e5dfeb6a-bc24-4130-b141-c8f1cf5b5ce8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IffkEn4E3iqHwd0f",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kill-switch",
+        "options": {}
+      },
+      "id": "1cd350f7-1d99-4b0f-b39d-481beb009f8d",
+      "name": "Kill-Switch Halt",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        1040
+      ],
+      "webhookId": "6532312e-b3f5-495e-8d23-cb04c000b163"
+    },
+    {
+      "parameters": {
+        "select": "user",
+        "user": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select the named accountable person (DM)"
+        },
+        "text": "=:octagonal_sign: *KILL-SWITCH ACTIVATED — execution halted*\\nScope: *{{ $json.body.scope }}*\\nHalted by: {{ $json.body.halted_by }}\\nReason: {{ $json.body.reason }}\\nTime: {{ $json.body.timestamp }}\\n\\nYou are the accountable owner. The pipeline stays halted until you act.",
+        "otherOptions": {}
+      },
+      "id": "02d56c34-4cf7-47bb-8428-321265420554",
+      "name": "Slack: Named Accountable Person (Kill-Switch)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.6,
+      "position": [
+        464,
+        960
+      ],
+      "webhookId": "6767fd14-2d67-475b-9ce3-9ea4ce28c638",
+      "credentials": {
+        "slackApi": {
+          "id": "86UvRsjA3GpOiiV9",
+          "name": "Slack account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "cryptoville.ng@gmail.com",
+        "subject": "=KILL-SWITCH ACTIVATED — {{ $json.body.scope }} halted",
+        "message": "=<p><b>KILL-SWITCH ACTIVATED — execution halted</b></p><p>Scope: <b>{{ $json.body.scope }}</b><br/>Halted by: {{ $json.body.halted_by }}<br/>Time: {{ $json.body.timestamp }}</p><p><b>Reason:</b><br/>{{ $json.body.reason }}</p><p>You are the accountable owner. The pipeline stays halted until you act.</p>",
+        "options": {}
+      },
+      "id": "bb63d302-302f-47c0-8afc-b49ab89e2b32",
+      "name": "Email: Named Accountable Person (Kill-Switch)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        464,
+        1136
+      ],
+      "webhookId": "bfc6d27b-ad79-4a86-a727-cfeb62826a91",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IffkEn4E3iqHwd0f",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "form",
+        "formTitle": "Substantive rationale",
+        "formDescription": "Required oversight completed with a signed documentation",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        912
+      ],
+      "id": "606fc377-17c3-49f4-873f-20a3036fed0b",
+      "name": "Wait",
+      "webhookId": "c96af379-567a-4c1b-9501-d9aaed88e040"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "88b67e8e-5241-4ecf-b0fa-d5922c88f33e",
+              "leftValue": "Substantive response",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        992,
+        912
+      ],
+      "id": "9ad0013f-825a-4db6-9baa-d44a88bffb07",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "workflow",
+        "operation": "enable",
+        "owner": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1216,
+        816
+      ],
+      "id": "57de33fd-1907-4f2e-9de5-da33412b9047",
+      "name": "Enable a workflow",
+      "webhookId": "4f5a20fe-429f-4ecc-ab66-a2000b54a55d",
+      "credentials": {
+        "githubApi": {
+          "id": "nZ5JQMp2gqRho33L",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Claude gets Jira tickets \n **PR Verdict comes from the council of agents (Gemini & Claude) judging the code from the code agent (Claude Opus)**",
+        "height": 176
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -48,
+        -16
+      ],
+      "typeVersion": 1,
+      "id": "5dfc3dbc-42d2-453a-b608-706db276e3e4",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Kill-switch checks judge disagreements. \n**Langfuse Regression Alarm checks drifts and red-team. Beyond a FAIL threshold, it sounds and halts automatic merge** ",
+        "height": 208
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -272,
+        864
+      ],
+      "typeVersion": 1,
+      "id": "0cc2758c-3ca4-4619-8bde-1e4ac5b25e4a",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## To resume \n**A substantive human interaction  must be recorded. Not a click\n\nEU AI Act Article 14**",
+        "height": 192
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1152,
+        992
+      ],
+      "typeVersion": 1,
+      "id": "c7ab14e2-e631-466b-8571-236e6c8f78e7",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": " \n**Failure Tag helps in training the model through RLHF.\n\nThis improves velocity over time.**",
+        "height": 128
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        656,
+        368
+      ],
+      "typeVersion": 1,
+      "id": "ef44e663-7d2b-4cc7-a126-05c904328144",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "resource": "workflow",
+        "operation": "disable",
+        "owner": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        160,
+        880
+      ],
+      "id": "90e75b5c-b254-40ec-ad32-514ab0f84f0b",
+      "name": "Disable a workflow",
+      "webhookId": "85456359-2211-4874-a8e2-4ea1d595cfa5",
+      "credentials": {
+        "githubApi": {
+          "id": "nZ5JQMp2gqRho33L",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "PR Verdict Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route by Council Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Council Score": {
+      "main": [
+        [
+          {
+            "node": "Auto-Merge PR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack: BORDERLINE Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Back With Failure Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: BORDERLINE Review": {
+      "main": [
+        [
+          {
+            "node": "Email: BORDERLINE Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: BORDERLINE Review": {
+      "main": [
+        [
+          {
+            "node": "Wait for Human Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Human Decision": {
+      "main": [
+        [
+          {
+            "node": "Human Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Approved?": {
+      "main": [
+        [
+          {
+            "node": "Merge (Human Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Back (Human Rejected)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Langfuse Regression Alarm": {
+      "main": [
+        [
+          {
+            "node": "Disable a workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Kill-Switch Halt": {
+      "main": [
+        [
+          {
+            "node": "Disable a workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Slack: Governance On-Call (Regression)": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: Governance On-Call (Regression)": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: Named Accountable Person (Kill-Switch)": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: Named Accountable Person (Kill-Switch)": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Enable a workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Disable a workflow": {
+      "main": [
+        [
+          {
+            "node": "Slack: Governance On-Call (Regression)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Governance On-Call (Regression)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack: Named Accountable Person (Kill-Switch)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Named Accountable Person (Kill-Switch)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email: Named Accountable Person (Kill-Switch)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack: Named Accountable Person (Kill-Switch)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack: Governance On-Call (Regression)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Governance On-Call (Regression)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9cd059ba-7960-445a-a74f-8b30040c3415",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4893de8d84a3a228ff2268b2a658d0ff1b18102a7a4943a9122f1b0a80927be1"
+  },
+  "nodeGroups": [],
+  "id": "y5gicXSLFZGpIxoo",
+  "tags": [
+    {
+      "updatedAt": "2026-08-22T12:38:40.158Z",
+      "createdAt": "2026-08-22T12:38:40.158Z",
+      "id": "qpOQOrZX0qqFyfk5",
+      "name": "n8n addition"
+    }
+  ]
+}
