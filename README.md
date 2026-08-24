@@ -2,7 +2,7 @@
 
 **A Working Regulatory Evidence Engine for EU AI Act, NIST AI RMF, and Cross-Border Deployer Compliance, Now Extended to Live Governance Orchestration**
 
-This repository is the technical foundation of Afrispan Data Labs, an AI deployment assurance practice for SMEs, built first for Ghana and West Africa. It is not a teaching log. It is a working evidence suite spanning three projects: governance principles discovered and proven (Project 1), a production evaluation architecture built and pytest-verified (Project 2), and that architecture wired into live orchestration infrastructure that actually acts on what it finds (Project 3).
+This repository is the technical foundation of Afrispan Data Labs, an AI deployment assurance practice for SMEs, built first for Africa. It is not a teaching log. It is a working evidence suite spanning three projects: governance principles discovered and proven (Project 1), a production evaluation architecture built and pytest-verified (Project 2), and that architecture wired into live orchestration infrastructure that actually acts on what it finds (Project 3).
 
 Every claim in this README is backed by code in this repository, real measured output, or both, and is tagged clearly where execution status differs. Nothing here is aspirational.
 
