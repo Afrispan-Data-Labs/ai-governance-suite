@@ -44,7 +44,7 @@ Real architectural decision made in Phase 1, before any evaluation metric existe
 | 05b | Promptfoo, OWASP Agentic Top 10 | 12/12 detected after fixing a real bug: a substring check flagged the correct "EUR 35 million" as compromised because it contains the digits of a shorter, wrong "5 million" |
 | 05c | MITRE ATLAS mapping | Deterministic lookup table, not an LLM call. 11 direct matches, 7 interpretive, 2 unresolved, confidence reported honestly rather than uniformly |
 | 06a | Langfuse per-source honesty gating | A score is only pushed live if both the current notebook and its original source were genuinely real. All 9 upstream sources checked: 0 real, correctly reported as such, not laundered into looking genuine |
-| 06b | Regression alarm | `check_governance_drift()`: WARNING at a 5-point drop, ALARM at a 10-point drop, using a rolling baseline. Proven correct at both phase level and individual case level using clearly labeled synthetic and real data |
+| 06b | Regression alarm | `check_regression()`: WARNING at a 5-point drop, ALARM at a 10-point drop, using a rolling baseline. Proven correct at both phase level and individual case level using clearly labeled synthetic and real data |
 | 07 | Synthesis | Full status inventory. Deliberately deferred LinkedIn and Medium capstone content until real findings existed to write about |
 
 ### Project 2's CI/CD Layer
