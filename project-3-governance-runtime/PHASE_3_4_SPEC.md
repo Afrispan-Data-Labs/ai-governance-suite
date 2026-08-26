@@ -80,7 +80,7 @@ Whether this dashboard needs authentication or access control before it could ev
 
 Confirm the following are true by actually checking, not assuming:
 1. The two existing n8n workflows in this folder still export cleanly and match the description in `PROJECT_HISTORY.md`.
-2. Project 2's `check_governance_drift()` and `build_artifact_hash()` functions exist and run as described, since both phases above depend on reusing them, not reimplementing them.
+2. Project 2's `check_regression()` and `build_artifact_hash()` functions exist and run as described, since both phases above depend on reusing them, not reimplementing them.
 3. Langfuse credentials and access are available in whatever environment this is being built in.
 
 If any of these are not true, stop and report exactly what was found rather than working around the discrepancy silently.
